@@ -1,0 +1,13 @@
+// Test if the same statement appears in the block after an if/else statement.
+
+class Main {
+    void main() {
+        int i;
+        i = 0;
+        if (false) {
+            i = 1;
+        } else {
+            i = 1;
+        }
+    }
+}

@@ -1,0 +1,26 @@
+class Foo {
+    boolean quux;
+    int bar(int a, int b) {
+        return ((a+b)/b)*5+1;
+    }
+}
+
+class Main {
+
+    void quuxify(Foo f, int a, int b) {
+
+        if(f.bar(a, b) > 29) {
+           f.quux = true;
+        }
+    }
+
+    void main() {
+        Foo f;
+        f = new Foo();
+        quuxify(f, 8, 2);
+        if (f.quux) {
+            write(1);
+            writeln();
+        }
+    }
+}

@@ -1,0 +1,12 @@
+// Test if the CFG Builder handles a return in a while stmt correctly.
+
+class Main {
+    void main() {}
+
+    int m() {
+        while (false) {
+            return 0;
+        }
+        return 0;
+    }
+}

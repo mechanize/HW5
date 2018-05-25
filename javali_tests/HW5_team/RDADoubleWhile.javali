@@ -1,0 +1,14 @@
+// check if the RDA recognizes that, if two equal statement originate from the same basic block, they should not appear twice when merging the outstates
+// of its predecessors(@func join)
+
+class Main {
+    void main() {
+        int i;
+        i = 0;
+        while (false) {
+            while (false) {
+                i = 1;
+            }
+        }
+    }
+}

@@ -1,0 +1,29 @@
+class Foo {
+    boolean bar;
+}
+
+class Main {
+
+    int toNextTen(Foo f, int i) {
+        while (f.bar) {
+            i = i+1;
+            if (i % 10 == 0) {
+                f.bar = false;
+            }
+        }
+        return i;
+    }
+
+    void main() {
+        Foo f;
+        int i;
+        int j;
+
+        f = new Foo();
+        i = 1;
+        f.bar = true;
+        j = toNextTen(f, i);
+        write(j);
+        writeln();
+    }
+}

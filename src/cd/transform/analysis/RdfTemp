@@ -1,0 +1,159 @@
+package cd.transform.analysis;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import cd.ToDoException;
+import cd.ir.Ast;
+import cd.ir.Ast.Assign;
+import cd.ir.Ast.MethodDecl;
+import cd.ir.Ast.Var;
+import cd.ir.BasicBlock;
+import cd.ir.ControlFlowGraph;
+import cd.ir.Symbol.VariableSymbol.Kind;
+import cd.transform.analysis.ReachingDefsAnalysis.Def;
+import cd.util.debug.AstOneLine;
+import javafx.collections.FXCollections;
+
+/**
+ * Computes the sets of reaching definitions for each basic block.
+ */
+public class ReachingDefsAnalysis extends DataFlowAnalysis<Set<Def>> {
+    private HashMap<BasicBlock, Set<Def>> genMap = new HashMap<>();
+	private HashMap<BasicBlock, Set<Def>> killMap = new HashMap<>();
+	/**
+	 * Perform reaching definitions analysis.
+	 *
+	 * @param cfg
+	 *            {@link ControlFlowGraph} of a {@link MethodDecl}
+	 */
+	public ReachingDefsAnalysis(ControlFlowGraph cfg) {
+		super(cfg);
+
+		//For each block split the Definitions into generating and killed ones.
+		Set<Def> allDefs = new HashSet<>();
+		for (BasicBlock block: cfg.allBlocks) {
+			Set<Def> genSet = new HashSet<>();
+			Set<Def> killSet = new HashSet<>();
+			//System.out.println(block.stmts.toString());
+			for (Ast.Stmt stmt: block.stmts) {
+				//System.out.println(stmt.toString());
+				if (stmt instanceof Assign) {
+					Def def;
+					try {
+						def = new Def((Assign) stmt);
+
+					Set<Def> toRemove = new HashSet<>();
+					for (Def preDef : genSet) {
+						if (preDef.target.equals(def.target)) {
+							toRemove.add(preDef);
+							killSet.add(preDef);
+						}
+					}
+					genSet.removeAll(toRemove);
+					genSet.add(def);
+					allDefs.add(def);
+					} catch (IllegalArgumentException e) {
+					}
+				}
+			}
+			genMap.put(block, genSet);
+			killMap.put(block, killSet);
+		}
+
+		// Now add all defs from other blocks to the killSet of each block if the def has the same target as a def in the genSet of this block.
+		for (BasicBlock block: cfg.allBlocks) {
+			for (Def def: allDefs) {
+				if(!genMap.get(block).contains(def) && !killMap.get(block).contains(def)) {
+					for (Def genDef: genMap.get(block)) {
+						if (def.target.equals(genDef.target)) {
+							killMap.get(block).add(def);
+						}
+					}
+				}
+			}
+		}
+		iterate();
+	}
+
+	@Override
+	protected Set<Def> initialState() {
+		return new HashSet<>();
+	}
+
+	@Override
+	protected Set<Def> startState() {
+		return new HashSet();
+	}
+
+	protected boolean equalDefs(Set<Def> first, Set<Def> second) {
+	    Set<Def> firstCopy = new HashSet<>(first);
+	    Set<Def> secondCopy = new HashSet<>(second);
+	    for (Def firstDef : first) {
+	        for (Def secondDef : second) {
+	            if (firstDef.equals(secondDef)) {
+	                firstCopy.remove(firstDef);
+	                secondCopy.remove(secondDef);
+                }
+            }
+        }
+        if (firstCopy.size() == 0 & secondCopy.size() == 0) {
+            return true;
+        } else {
+	        return false;
+        }
+    }
+
+	@Override
+    protected boolean equalStates(Map<BasicBlock, Set<Def>> first, Map<BasicBlock, Set<Def>> second) {
+	    if (first.size() != second.size()) {return false;}
+	    for (BasicBlock block: first.keySet()) {
+	        if (!equalDefs(first.get(block), second.get(block))) {return false;}
+        }
+	    return true;
+    }
+
+	@Override
+	protected Set<Def> transferFunction(BasicBlock block, Set<Def> inState) {
+		Set<Def> outState = new HashSet<>(inState);
+		outState.removeAll(killMap.get(block));
+		outState.addAll(genMap.get(block));
+		return outState;
+	}
+
+	@Override
+	protected Set<Def> join(Set<Set<Def>> states) {
+		Set<Def> result = new HashSet<>();
+		for (Set<Def> defs : states) {
+			result.addAll(defs);
+		}
+		return result;
+	}
+
+	/**
+	 * Class representing a definition in the {@link Ast} of a method.
+	 */
+	public static class Def {
+		public final Assign assign;
+		public final String target;
+
+		/**
+		 * Create a {@link Def} from an {@link Assign} of the form <code>var = ...</code>
+		 */
+		public Def(Assign assign) {
+			if (!(assign.left() instanceof Var) || ((Var) assign.left()).sym.kind == Kind.FIELD)
+				throw new IllegalArgumentException("definitions must have (local) variable on LHS");
+
+			this.assign = assign;
+			this.target = ((Var) assign.left()).name;
+		}
+
+		@Override
+		public String toString() {
+			return AstOneLine.toString(assign);
+		}
+
+	}
+}

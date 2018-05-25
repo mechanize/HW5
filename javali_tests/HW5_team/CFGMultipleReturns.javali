@@ -1,0 +1,21 @@
+// Test if the CFG builder can handle multiple return statements.
+
+class Main {
+    void main() {}
+
+    int m() {
+        if (false) {
+            return 0;
+        } else {
+            if (false) {
+                return 0;
+            } else {
+                return 0;
+            }
+            while (false) {
+                return 0;
+            }
+            return 0;
+        }
+    }
+}

@@ -1,0 +1,125 @@
+package cd.transform.analysis;
+
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
+
+import cd.ToDoException;
+import cd.ir.BasicBlock;
+import cd.ir.ControlFlowGraph;
+
+/**
+ * The abstract superclass of all data-flow analyses. This class provides a framework to
+ * implement concrete analyses by providing {@link #initialState()},
+ * {@link #startState()}, {@link #transferFunction(BasicBlock, Object)}, and
+ * {@link #join(Set)} methods.
+ *
+ * @param <State>
+ *            The type of states the analysis computes, specified by a concrete subclass.
+ *            Typically, this is a set or map type.
+ */
+public abstract class DataFlowAnalysis<State> {
+
+	protected final ControlFlowGraph cfg;
+	private Map<BasicBlock, State> inStates;
+	private Map<BasicBlock, State> outStates;
+
+	public DataFlowAnalysis(ControlFlowGraph cfg) {
+		this.cfg = cfg;
+	}
+
+	/**
+	 * Returns the in-state of basic block <code>block</code>.
+	 */
+	public State inStateOf(BasicBlock block) {
+		return inStates.get(block);
+	}
+
+	/**
+	 * Returns the out-state of basic block <code>block</code>.
+	 */
+	public State outStateOf(BasicBlock block) {
+		return outStates.get(block);
+	}
+
+	/**
+	 * Do forward flow fixed-point iteration until out-states do not change anymore.
+	 * Subclasses should call this method in their constructor after the required
+	 * initialization.
+	 */
+	protected abstract boolean equalStates(Map<BasicBlock, State> first, Map<BasicBlock, State> second);
+
+	protected void iterate() {
+		inStates = new HashMap<>();
+		outStates = new HashMap<>();
+		for (BasicBlock block : cfg.allBlocks) {
+			inStates.put(block, initialState());
+		}
+		inStates.put(cfg.start, startState());
+		outStates.put(cfg.start, startState()); //Necessary so outStates != oldOutStates in the first iteration.
+
+		Map<BasicBlock,State> oldOutStates = new HashMap<>();
+
+		// Create a list of all basicBlocks except the startState.
+		// We don't want the inState of the startState to be calculated from the outStates of its predecessors.
+		List<BasicBlock> allBlocks = new ArrayList<>(cfg.allBlocks);
+		allBlocks.remove(0);
+		while (!equalStates(outStates, oldOutStates)) {
+			oldOutStates = new HashMap<>(outStates);
+			outStates.clear();
+
+			for (BasicBlock block: cfg.allBlocks) {
+				outStates.put(block, transferFunction(block, inStateOf(block)));
+			}
+
+			for (BasicBlock block: allBlocks) {
+				Set<State> predecessorStates = block.predecessors.stream()
+						.map(b -> outStateOf(b)).collect(Collectors.toSet());
+				inStates.replace(block, join(predecessorStates));
+			}
+
+            // The following comment block is here to remember the lambda functions who fell victim
+            // to a ConcurrentModificationException. We shall remember the joy they brought, the love
+            // they felt and be thankful that they were. May they find peace here, in the well visited
+            // iterate method of the DataFlowAnalysis. Where once they were all the pride and beauty of
+            // the whole analysis package and everything a compiler could wish for. I just want to say,
+            // Thank you.
+
+			/*
+			// Apply transferFunction to every block and its inState and save the new outState.
+			outStates = cfg.allBlocks.stream().collect(Collectors.
+					toMap(Function.identity(), block -> transferFunction(block, startState())));
+
+			// Calculate the new inStates from the outStates of the predecessors for every block
+			// except the start block.
+			inStates = allBlocks.stream().collect(Collectors.
+					toMap(Function.identity(), block -> join(block.predecessors.stream()
+							.map(b -> outStates.get(b)).collect(Collectors.toSet()))));
+			inStates.put(cfg.start, startState());
+			*/
+		}
+	}
+
+	/**
+	 * Returns the initial state for all blocks except the {@link ControlFlowGraph#start start}
+	 * block.
+	 */
+	protected abstract State initialState();
+
+	/**
+	 * Returns the initial state for the {@link ControlFlowGraph#start start} block.
+	 */
+	protected abstract State startState();
+
+	/**
+	 * Calculates the out-state for a basic block <code>block</code> and an in-state
+	 * <code>inState</code>
+	 */
+	protected abstract State transferFunction(BasicBlock block, State inState);
+
+	/**
+	 * Merges together several out-states and returns the in-state for the transfer function.
+	 */
+	protected abstract State join(Set<State> states);
+}

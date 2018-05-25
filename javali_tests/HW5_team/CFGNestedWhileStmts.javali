@@ -1,0 +1,17 @@
+// Test if the CFG builder can handel multiple while statements
+
+class Main {
+    void main() {
+        int i0, i1;
+
+        while(false) {
+            i0 = i0 + 1;
+            while(false) {
+                i1 = i1 + 1;
+                while(false) {
+                    write(i0 + i1);
+                }
+            }
+        }
+    }
+}

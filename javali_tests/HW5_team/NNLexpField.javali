@@ -1,0 +1,19 @@
+class Point {
+    int x;
+    int y;
+}
+
+class Main {
+
+    void setCoords(Point p, int i, int j) {
+        p.x = i;
+        p.y = j;
+    }
+
+    void main() {
+        Point p;
+
+        p = new Point();
+        setCoords(p, 3, 5);
+    }
+}

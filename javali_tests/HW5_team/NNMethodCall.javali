@@ -1,0 +1,23 @@
+class Foo {}
+
+class Main {
+
+   int bar(Foo f) {
+       return 0;
+   }
+
+   int baz(Foo f) {
+       f = null;
+       return 0;
+   }
+
+   void main() {
+       Foo a;
+       Foo b;
+
+       a = new Foo();
+       b = new Foo();
+       bar(b);
+       baz(a);
+   }
+}
